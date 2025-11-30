@@ -57,7 +57,9 @@
     }
 
     /* controls area */
-    .controls{display:flex;flex-direction:column;align-items:center;gap:14px;width:220px;box-sizing:border-box}
+    .controls{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;width:220px;box-sizing:border-box}
+    /* when display is placed in left column, make it narrower and centered */
+    .left .display, .left-display{width:320px;margin:12px auto}
     .display{
       width:100%;height:120px;background: linear-gradient(180deg,#041826,#05222b);border-radius:14px;padding:16px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.04);
       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;backdrop-filter: blur(4px);
@@ -76,6 +78,16 @@
 
     .display{box-shadow: 0 10px 30px rgba(2,6,23,.6)}
 
+    /* small control buttons + layout for right column actions */
+    .actions{display:flex;align-items:center;gap:12px;justify-content:center;position:relative}
+    .left .actions{justify-content:center}
+    .btn-small{padding:10px 12px;border-radius:12px;border:none;cursor:pointer;font-size:1rem;box-shadow:0 6px 14px rgba(2,6,23,.45);background:linear-gradient(180deg,#ffffff11,#ffffff06)}
+    /* start button: larger, rounded pill-like but matched height with snapshot */
+    .start-btn{min-width:200px;height:52px;padding:0 22px;border-radius:20px;font-size:1.02rem;font-weight:900;box-shadow:0 6px 12px rgba(0,0,0,0.28);display:inline-flex;align-items:center;justify-content:center}
+    /* snapshot: small square icon to the right of start */
+    .snap-btn{width:52px;height:52px;border-radius:12px;background:linear-gradient(180deg,#0b1b26,#061018);color:#dfefff;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 6px 12px rgba(3,9,27,.36);border:1px solid rgba(255,255,255,0.03)}
+    .btn-small:active{transform:translateY(2px)}
+
     @media (prefers-reduced-motion: reduce){
       .start-btn, .stick, .strip { transition: none !important; animation: none !important }
       canvas{display:none}
@@ -84,11 +96,7 @@
     .start-btn{background:linear-gradient(180deg,#ffd166,#ffb703);border:none;font-weight:800;cursor:pointer;box-shadow: 0 6px 18px rgba(255,177,3,.12), 0 2px 0 rgba(255,255,255,.06);}
     .start-btn:active{transform:translateY(2px)}
 
-    .lever{
-      width:66px;height:140px;background:linear-gradient(180deg,#081820,#051017);border-radius:12px;display:flex;align-items:center;justify-content:center;position:relative;overflow:visible;
-    }
-    .stick{width:12px;height:70px;background:#1b2a3a;border-radius:12px;transform-origin:center 60px;transition:transform .2s ease}
-    .knob{width:44px;height:44px;border-radius:50%;background:linear-gradient(180deg,#ffefc2,#ffd166);box-shadow:0 8px 24px rgba(0,0,0,.5), 0 0 18px rgba(255,209,102,.12)}
+    /* lever removed for cleaner layout */
 
     /* top lights (hidden for a cleaner layout) */
     .lights{display:none}
@@ -103,11 +111,19 @@
 
     /* responsive tweaks */
     @media (max-width:720px){
-      .machine{grid-template-columns:1fr}
+      .wrap{width:calc(100vw - 28px); max-width:none}
+      .machine{grid-template-columns:1fr; padding:16px; gap:12px; border-radius:14px}
+      .left{padding:12px}
+      .reels{gap:10px}
       .reel{width:72px;height:120px}
-      .digit{width:54px;height:54px;font-size:1.6rem}
-      .display{height:86px}
-      .bignum{font-size:1.6rem}
+      .digit{width:50px;height:50px;font-size:1.4rem}
+      .display{height:96px;padding:12px}
+      .bignum{font-size:2rem}
+      .controls{width:100%;flex-direction:row;justify-content:space-between;align-items:center;gap:10px}
+      .start-btn{min-width:48%;width:58%;padding:12px 10px;font-size:1rem}
+      .actions{justify-content:space-between}
+      .lever{margin-top:6px}
+      footer{font-size:.82rem}
     }
 
   </style>
@@ -125,6 +141,12 @@
         </div>
         <h1 class="title"> 내일 내 시험점수는??</h1>
 
+        <!-- move result display here (centered under title) -->
+        <div class="display left-display" aria-live="polite">
+          <div class="bignum" id="finalDisplay">—</div>
+          <div class="hint">버튼을 눌러 결과 확인</div>
+        </div>
+
         <div class="reels" id="reels">
           <div class="reel" aria-hidden="true">
             <div class="window"><div class="strip" id="strip-0"></div></div>
@@ -136,21 +158,15 @@
             <div class="window"><div class="strip" id="strip-2"></div></div>
           </div>
         </div>
-      </div>
 
-      <div class="controls">
-        <div class="display" aria-live="polite">
-          <div class="bignum" id="finalDisplay">—</div>
-          <div class="hint">버튼을 눌러 결과 확인</div>
-        </div>
-
-        <button class="start-btn" id="spinBtn" aria-pressed="false">결과 확인!</button>
-
-        <div class="lever" id="lever" title="레버를 당기려면 버튼을 누르세요">
-          <div class="stick" id="stick"></div>
-          <div style="position:absolute;bottom:10px;" class="knob" aria-hidden="true"></div>
+        <!-- actions moved under the reels for cleaner layout -->
+        <div class="actions" style="margin-top:18px;">
+          <button class="start-btn" id="spinBtn" aria-pressed="false">결과 확인!</button>
+          <button class="btn-small snap-btn" id="snapBtn" title="스냅샷 찍기">📸</button>
         </div>
       </div>
+
+      <div class="controls"></div>
     </div>
   </div>
 
@@ -163,7 +179,6 @@
     const spinBtn = document.getElementById('spinBtn');
     // share feature removed
     const finalDisplay = document.getElementById('finalDisplay');
-    const leverStick = document.getElementById('stick');
     const lights = document.querySelectorAll('.light');
 
     // canvas confetti
@@ -219,15 +234,25 @@
 
     // sound using WebAudio (improved slot-like clicks + musical ding)
     let audioCtx = null;
-    function getAudioCtx(){ if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx }
+    let masterGain = null;
+    function getAudioCtx(){ 
+      if(!audioCtx){ 
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(1, audioCtx.currentTime);
+        masterGain.connect(audioCtx.destination);
+      }
+      return audioCtx 
+    }
 
     function playTone(freq, opts = {}){
       const ctx = getAudioCtx();
+      if(!masterGain && ctx){ masterGain = ctx.createGain(); masterGain.gain.setValueAtTime(1, ctx.currentTime); masterGain.connect(ctx.destination); }
       const {time = 0, duration = 0.18, type = 'sine', gain = 0.04} = opts; // quieter default
       const o = ctx.createOscillator(); const g = ctx.createGain();
       o.type = type; o.frequency.setValueAtTime(freq, ctx.currentTime + time);
       g.gain.setValueAtTime(0.0001, ctx.currentTime + time);
-      o.connect(g); g.connect(ctx.destination);
+      o.connect(g); g.connect(masterGain || ctx.destination);
       g.gain.exponentialRampToValueAtTime(gain, ctx.currentTime + time + 0.005);
       o.start(ctx.currentTime + time);
       g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + time + duration);
@@ -305,9 +330,7 @@
       const ctx = getAudioCtx();
       if(ctx.state === 'suspended') await ctx.resume();
 
-      // lever animation
-      leverStick.style.transform = 'rotate(35deg)';
-      setTimeout(()=>{leverStick.style.transform='rotate(0deg)';}, 900);
+      // removed pulse animation to avoid visual popping
 
       // determine target number
       const target = randInt(MIN, MAX);
@@ -369,6 +392,13 @@
               const finalThudTime = startTime + durSec - 0.05;
               const thudFreq = 160 + Math.random()*60;
               playTone(thudFreq, {time: finalThudTime - ctx.currentTime, duration:0.08, type:'sine', gain:0.06});
+
+              // schedule mobile haptic vibration (if supported) to align with final thud
+              if(navigator.vibrate){
+                const now = ctx.currentTime;
+                const delayMs = Math.max(0, Math.floor((finalThudTime - now) * 1000));
+                setTimeout(()=>{ try{ navigator.vibrate(20); }catch(e){} }, delayMs);
+              }
             }catch(e){}
 
             // resolve after animation ends
@@ -409,6 +439,47 @@
 
     // wire button
     spinBtn.addEventListener('click', ()=>{ if(!spinning) spin(); });
+
+    // snapshot button
+    const snapBtn = document.getElementById('snapBtn');
+
+    // snapshot: render a small number card and offer download or share
+    function snapshotNumber(){
+      const txt = (finalDisplay.textContent || '').trim() || '-';
+      // create canvas sized for a card
+      const w = 720, h = 480;
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const cctx = c.getContext('2d');
+      // background gradient
+      const g = cctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0,'#041826'); g.addColorStop(1,'#05222b');
+      cctx.fillStyle = g; cctx.fillRect(0,0,w,h);
+      // soft rounded card overlay
+      cctx.fillStyle = 'rgba(255,255,255,0.02)'; cctx.fillRect(24,24,w-48,h-48);
+      // big number
+      cctx.fillStyle = '#06d6a0'; cctx.font = 'bold 160px system-ui, sans-serif'; cctx.textAlign='center'; cctx.textBaseline='middle';
+      cctx.fillText(txt, w/2, h/2 - 10);
+      // hint
+      cctx.fillStyle = '#9fb2d8'; cctx.font = '20px system-ui, sans-serif'; cctx.fillText('내일 내 시험점수는?', w/2, h - 60);
+
+      // convert to blob and share/download
+      c.toBlob(async (blob)=>{
+        if(!blob) return;
+        const file = new File([blob], 'score.png', {type:'image/png'});
+        // try Web Share Level 2
+        try{
+          if(navigator.canShare && navigator.canShare({files:[file]})){
+            await navigator.share({files:[file], title:'시험점수', text:`내일 내 시험점수: ${txt}`});
+            return;
+          }
+        }catch(e){}
+        // fallback: download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'score.png'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      }, 'image/png');
+    }
+
+    if(snapBtn){ snapBtn.addEventListener('click', snapshotNumber); }
 
     // share / copy result
     // share logic removed per user request
