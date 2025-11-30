@@ -15,17 +15,19 @@
       --size: min(520px, 92vw);
       font-family: Inter, system-ui, -apple-system, 'Noto Sans KR', '맑은 고딕', sans-serif;
     }
-    html,body{height:100%; overflow-x:hidden; box-sizing:border-box; min-width:0}
+    html,body{height:100%; width:100%; overflow-x:hidden; box-sizing:border-box; min-width:0}
     *, *::before, *::after { box-sizing: inherit }
     body{
       margin:0;
+      padding-left: env(safe-area-inset-left, 0);
+      padding-right: env(safe-area-inset-right, 0);
       background: radial-gradient(1200px 600px at 10% 10%, rgba(6,22,48,.5), transparent),
                   radial-gradient(900px 500px at 90% 80%, rgba(8,44,72,.35), transparent),
                   var(--bg);
-      display:flex;align-items:center;justify-content:center;color:#e6eef8;
+      display:flex;align-items:center;justify-content:center;color:#e6eef8;width:100%;
     }
 
-    .wrap{width:var(--size);max-width:calc(100% - 20px);margin:0 auto;max-width:100vw;padding:0 10px;box-sizing:border-box}
+    .wrap{width:var(--size);max-width:calc(100vw - 20px);margin:0 auto;padding:0 10px;box-sizing:border-box;display:flex;justify-content:center}
 
     .machine{
       background: linear-gradient(180deg,#071227 0%, #081826 100%);
@@ -57,7 +59,7 @@
       border:1px solid rgba(255,255,255,0.035);
     }
 
-    /* controls area */
+    /* controls area: visible on desktop, hidden on mobile */
     .controls{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;width:220px;box-sizing:border-box}
     /* when display is placed in left column, make it narrower and centered */
     .left .display, .left-display{width:320px;margin:12px auto}
@@ -87,6 +89,8 @@
     .bignum.score-low{color:#ef476f; text-shadow: 0 12px 34px rgba(239,71,111,0.10)}
     .bignum.score-mid{color:#ffb703; text-shadow: 0 12px 34px rgba(255,183,3,0.08)}
     .bignum.score-high{color:var(--accent-2); text-shadow: 0 12px 44px rgba(6,214,160,.12)}
+    .bignum.score-min{color:#9ad3ff; text-shadow: 0 12px 34px rgba(154,211,255,0.15)}
+    .bignum.score-max{color:#ffd700; text-shadow: 0 12px 34px rgba(255,215,0,0.20)}
 
     /* small control buttons + layout for right column actions */
     .actions{display:flex;align-items:center;gap:12px;justify-content:center;position:relative}
@@ -448,12 +452,21 @@
               const interval = durSec / ticks;
               const startOffset = 0.02; // small offset from now
               const startTime = ctx.currentTime + startOffset;
+              const vibrateTimers = [];
               for(let k=0;k<ticks;k++){
                 const t = startTime + k * interval;
                 const f = 300 + Math.random() * 220; // low 'wood' tone
                 playTone(f, {time: t - ctx.currentTime, duration:0.05, type:'triangle', gain:0.05});
                 // small high click for attack
                 playTone(f * 1.8, {time: t - ctx.currentTime + 0.004, duration:0.03, type:'sine', gain:0.02});
+                // schedule a short vibration aligned with each tick (if supported)
+                try{
+                  if(navigator.vibrate){
+                    const delayMs = Math.max(0, Math.floor((t - ctx.currentTime) * 1000));
+                    const vt = setTimeout(()=>{ try{ navigator.vibrate(18); }catch(e){} }, delayMs);
+                    vibrateTimers.push(vt);
+                  }
+                }catch(e){}
               }
               // final solid thud shortly before the end
               const finalThudTime = startTime + durSec - 0.05;
@@ -461,15 +474,25 @@
               playTone(thudFreq, {time: finalThudTime - ctx.currentTime, duration:0.08, type:'sine', gain:0.06});
 
               // schedule mobile haptic vibration (if supported) to align with final thud
-              if(navigator.vibrate){
-                const now = ctx.currentTime;
-                const delayMs = Math.max(0, Math.floor((finalThudTime - now) * 1000));
-                setTimeout(()=>{ try{ navigator.vibrate(20); }catch(e){} }, delayMs);
-              }
+              try{
+                if(navigator.vibrate){
+                  const now = ctx.currentTime;
+                  const delayMs = Math.max(0, Math.floor((finalThudTime - now) * 1000));
+                  // slightly longer/buffered vibration for final thud
+                  const vtFinal = setTimeout(()=>{ try{ navigator.vibrate([30,10,30]); }catch(e){} }, delayMs);
+                  vibrateTimers.push(vtFinal);
+                }
+              }catch(e){}
             }catch(e){}
 
             // resolve after animation ends
-            setTimeout(()=>{ strip.style.transition='none'; resolve(); }, duration+40);
+            const resolveTimer = setTimeout(()=>{ 
+              // clear any pending vibrate timers (safety)
+              try{ vibrateTimers.forEach(t=>clearTimeout(t)); }catch(e){}
+              strip.style.transition='none'; resolve(); 
+            }, duration+40);
+            // ensure the resolveTimer itself is cleared if something cancels earlier (rare)
+            vibrateTimers.push(resolveTimer);
           }, startDelay);
         });
       }
@@ -486,11 +509,13 @@
       // If result is 000 -> treat as 100, if >100 cap at 100. This makes distribution slightly non-uniform but fun.
       const finalScore = shown === 0 ? 100 : Math.min(shown,100);
 
-        // apply color class based on score range
+        // apply color class based on score range (including special 1/100)
         function applyScoreColor(score){
-          finalDisplay.classList.remove('score-low','score-mid','score-high');
+          finalDisplay.classList.remove('score-low','score-mid','score-high','score-min','score-max');
           if(typeof score !== 'number' || isNaN(score)) return;
-          if(score <= 30) finalDisplay.classList.add('score-low');
+          if(score === 1) finalDisplay.classList.add('score-min');
+          else if(score === 100) finalDisplay.classList.add('score-max');
+          else if(score <= 30) finalDisplay.classList.add('score-low');
           else if(score <= 70) finalDisplay.classList.add('score-mid');
           else finalDisplay.classList.add('score-high');
         }
@@ -530,6 +555,15 @@
     // snapshot: render a small number card and offer download or share
     function snapshotNumber(){
       const txt = (finalDisplay.textContent || '').trim() || '-';
+      const score = parseInt(txt) || 0;
+      
+      // determine color based on score (matching display color)
+      let numColor = '#06d6a0'; // default high
+      if(score === 1) numColor = '#9ad3ff'; // score-min
+      else if(score === 100) numColor = '#ffd700'; // score-max
+      else if(score <= 30) numColor = '#ef476f'; // score-low
+      else if(score <= 70) numColor = '#ffb703'; // score-mid
+      
       // create canvas sized for a card
       const w = 720, h = 480;
       const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -540,8 +574,11 @@
       cctx.fillStyle = g; cctx.fillRect(0,0,w,h);
       // soft rounded card overlay
       cctx.fillStyle = 'rgba(255,255,255,0.02)'; cctx.fillRect(24,24,w-48,h-48);
-      // big number
-      cctx.fillStyle = '#06d6a0'; cctx.font = 'bold 160px system-ui, sans-serif'; cctx.textAlign='center'; cctx.textBaseline='middle';
+      // big number with score-based color
+      cctx.fillStyle = numColor; 
+      cctx.font = 'bold 160px system-ui, sans-serif'; 
+      cctx.textAlign='center'; 
+      cctx.textBaseline='middle';
       cctx.fillText(txt, w/2, h/2 - 10);
       // hint
       cctx.fillStyle = '#9fb2d8'; cctx.font = '20px system-ui, sans-serif'; cctx.fillText('내일 내 시험점수는?', w/2, h - 60);
