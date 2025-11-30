@@ -15,19 +15,17 @@
       --size: min(520px, 92vw);
       font-family: Inter, system-ui, -apple-system, 'Noto Sans KR', '맑은 고딕', sans-serif;
     }
-    html,body{height:100%; width:100%; overflow-x:hidden; box-sizing:border-box; min-width:0}
+    html,body{height:100%; width:100%; overflow-x:hidden; box-sizing:border-box; min-width:0; margin:0; padding:0}
     *, *::before, *::after { box-sizing: inherit }
     body{
-      margin:0;
-      padding-left: env(safe-area-inset-left, 0);
-      padding-right: env(safe-area-inset-right, 0);
+      max-width:100vw;
       background: radial-gradient(1200px 600px at 10% 10%, rgba(6,22,48,.5), transparent),
                   radial-gradient(900px 500px at 90% 80%, rgba(8,44,72,.35), transparent),
                   var(--bg);
       display:flex;align-items:center;justify-content:center;color:#e6eef8;width:100%;
     }
 
-    .wrap{width:var(--size);max-width:calc(100vw - 20px);margin:0 auto;padding:0 10px;box-sizing:border-box;display:flex;justify-content:center}
+    .wrap{width:var(--size);max-width:100vw;margin:0 auto;padding:0;box-sizing:border-box;display:flex;justify-content:center}
 
     .machine{
       background: linear-gradient(180deg,#071227 0%, #081826 100%);
@@ -118,7 +116,7 @@
     .light.on{background:var(--accent);box-shadow: 0 0 14px rgba(255,209,102,.35)}
 
     /* confetti canvas overlay: fix to viewport to avoid layout shift/overflow on mobile */
-    canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+    canvas{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;left:0;top:0}
 
     /* footer */
     footer{margin-top:14px;color:#9fb2d8;font-size:.85rem;text-align:center}
@@ -453,36 +451,37 @@
               const startOffset = 0.02; // small offset from now
               const startTime = ctx.currentTime + startOffset;
               const vibrateTimers = [];
+              
+              // use consistent wallclock timing for all timers (synced to startDelay)
+              const wallclockStart = Date.now() + (startDelay);
+              
               for(let k=0;k<ticks;k++){
                 const t = startTime + k * interval;
                 const f = 300 + Math.random() * 220; // low 'wood' tone
                 playTone(f, {time: t - ctx.currentTime, duration:0.05, type:'triangle', gain:0.05});
                 // small high click for attack
                 playTone(f * 1.8, {time: t - ctx.currentTime + 0.004, duration:0.03, type:'sine', gain:0.02});
-                // schedule a short vibration aligned with each tick (if supported)
-                try{
-                  if(navigator.vibrate){
-                    const delayMs = Math.max(0, Math.floor((t - ctx.currentTime) * 1000));
-                    const vt = setTimeout(()=>{ try{ navigator.vibrate(18); }catch(e){} }, delayMs);
-                    vibrateTimers.push(vt);
-                  }
-                }catch(e){}
+                
+                // schedule vibration synced to audio timing
+                if(navigator.vibrate){
+                  const delayMs = Math.max(0, Math.floor((t - ctx.currentTime) * 1000));
+                  const vt = setTimeout(()=>{ try{ navigator.vibrate(16); }catch(e){} }, delayMs);
+                  vibrateTimers.push(vt);
+                }
               }
+              
               // final solid thud shortly before the end
               const finalThudTime = startTime + durSec - 0.05;
               const thudFreq = 160 + Math.random()*60;
               playTone(thudFreq, {time: finalThudTime - ctx.currentTime, duration:0.08, type:'sine', gain:0.06});
 
-              // schedule mobile haptic vibration (if supported) to align with final thud
-              try{
-                if(navigator.vibrate){
-                  const now = ctx.currentTime;
-                  const delayMs = Math.max(0, Math.floor((finalThudTime - now) * 1000));
-                  // slightly longer/buffered vibration for final thud
-                  const vtFinal = setTimeout(()=>{ try{ navigator.vibrate([30,10,30]); }catch(e){} }, delayMs);
-                  vibrateTimers.push(vtFinal);
-                }
-              }catch(e){}
+              // schedule final vibration pattern synced to final thud timing
+              if(navigator.vibrate){
+                const delayMs = Math.max(0, Math.floor((finalThudTime - ctx.currentTime) * 1000));
+                // pattern: vibrate(ms), pause(ms), vibrate(ms) for punchy finish
+                const vtFinal = setTimeout(()=>{ try{ navigator.vibrate([25,15,25]); }catch(e){} }, delayMs);
+                vibrateTimers.push(vtFinal);
+              }
             }catch(e){}
 
             // resolve after animation ends
